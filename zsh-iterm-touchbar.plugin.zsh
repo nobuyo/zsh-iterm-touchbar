@@ -144,37 +144,31 @@ function _displayDefault() {
     pecho "\033]1337;SetKeyLabel=F2=⛔ not git yet\a";
   fi
 
+  if [[ "$(git rev-parse --is-inside-git-dir 2> /dev/null)" == 'false' ]]; then
+    toolsIndex=5
+  else
+    toolsIndex=3
+  fi
+
   # PACKAGE.JSON
   # ------------
   if [[ -f package.json ]]; then
-    if [[ "$(git rev-parse --is-inside-git-dir 2> /dev/null)" == 'false' ]]; then
-      if [[ -f yarn.lock ]]; then
-          pecho "\033]1337;SetKeyLabel=F5=🐱 yarn-run\a"
-          bindkey "${fnKeys[5]}" _displayYarnScripts
-      else
-          pecho "\033]1337;SetKeyLabel=F5=⚡️ npm-run\a"
-          bindkey "${fnKeys[5]}" _displayNpmScripts
-      fi
+    if [[ -f yarn.lock ]]; then
+        pecho "\033]1337;SetKeyLabel=F$toolsIndex=🐱 yarn-run\a"
+        bindkey $fnKeys[$toolsIndex] _displayYarnScripts
     else
-      if [[ -f yarn.lock ]]; then
-          pecho "\033]1337;SetKeyLabel=F3=🐱 yarn-run\a"
-          bindkey "${fnKeys[3]}" _displayYarnScripts
-      else
-          pecho "\033]1337;SetKeyLabel=F3=⚡️ npm-run\a"
-          bindkey "${fnKeys[3]}" _displayNpmScripts
-      fi
+        pecho "\033]1337;SetKeyLabel=F$toolsIndex=⚡️ npm-run\a"
+        bindkey $fnKeys[$toolsIndex] _displayNpmScripts
     fi
+    toolsIndex=$((toolsIndex + 1))
   fi
+
   # MAKEFILE
   # ------------
   if [[ -f Makefile ]]; then
-    if [[ "$(git rev-parse --is-inside-git-dir 2> /dev/null)" == 'false' ]]; then
-      pecho "\033]1337;SetKeyLabel=F6=🐒 make\a"
-      bindkey "${fnKeys[6]}" _displayMakeScripts
-    else
-      pecho "\033]1337;SetKeyLabel=F4=🐒 make\a"
-      bindkey "${fnKeys[4]}" _displayMakeScripts
-    fi
+    pecho "\033]1337;SetKeyLabel=F$toolsIndex=🐒 make\a"
+    bindkey $fnKeys[$toolsIndex] _displayMakeScripts
+    toolsIndex=$((toolsIndex + 1))
   fi
 }
 
