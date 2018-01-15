@@ -84,8 +84,10 @@ pecho() {
 fnKeys=('^[OP' '^[OQ' '^[OR' '^[OS' '^[[15~' '^[[17~' '^[[18~' '^[[19~' '^[[20~' '^[[21~' '^[[23~' '^[[24~')
 touchBarState=''
 npmScripts=()
+makeRules=()
 gitBranches=()
 lastPackageJsonPath=''
+lastMakefilePath=''
 
 function _clearTouchbar() {
   pecho "\033]1337;PopKeyLabels\a"
@@ -111,7 +113,7 @@ function _displayDefault() {
   # GIT
   # ---
   # Check if the current directory is in a Git repository.
-  command git rev-parse --is-inside-work-tree &>/dev/null || return
+  # command git rev-parse --is-inside-work-tree &>/dev/null || return
 
   # Check if the current directory is in .git before running git checks.
   if [[ "$(git rev-parse --is-inside-git-dir 2> /dev/null)" == 'false' ]]; then
@@ -132,24 +134,41 @@ function _displayDefault() {
 
     pecho "\033]1337;SetKeyLabel=F2=🎋 $(git_current_branch)\a"
     pecho "\033]1337;SetKeyLabel=F3=$touchbarIndicators\a"
-    pecho "\033]1337;SetKeyLabel=F4=✉️ push\a";
+    pecho "\033]1337;SetKeyLabel=F4=👀\a";
 
     # bind git actions
-    bindkey '^[OQ' _displayBranches
-    bindkey -s '^[OR' 'git status \n'
-    bindkey -s '^[OS' "git push origin $(git_current_branch) \n"
+    bindkey "${fnKeys[2]}" _displayBranches
+    bindkey -s "${fnKeys[3]}" 'git status \n'
+    bindkey -s "${fnKeys[4]}" "git diff \n"
+  else
+    pecho "\033]1337;SetKeyLabel=F2=⛔ not git yet\a";
+  fi
+
+  if [[ "$(git rev-parse --is-inside-git-dir 2> /dev/null)" == 'false' ]]; then
+    toolsIndex=5
+  else
+    toolsIndex=3
   fi
 
   # PACKAGE.JSON
   # ------------
   if [[ -f package.json ]]; then
-      if [[ -f yarn.lock ]]; then
-          pecho "\033]1337;SetKeyLabel=F5=🐱 yarn-run\a"
-          bindkey "${fnKeys[5]}" _displayYarnScripts
-      else
-          pecho "\033]1337;SetKeyLabel=F5=⚡️ npm-run\a"
-          bindkey "${fnKeys[5]}" _displayNpmScripts
+    if [[ -f yarn.lock ]]; then
+        pecho "\033]1337;SetKeyLabel=F$toolsIndex=🐱 yarn-run\a"
+        bindkey $fnKeys[$toolsIndex] _displayYarnScripts
+    else
+        pecho "\033]1337;SetKeyLabel=F$toolsIndex=⚡️ npm-run\a"
+        bindkey $fnKeys[$toolsIndex] _displayNpmScripts
     fi
+    toolsIndex=$((toolsIndex + 1))
+  fi
+
+  # MAKEFILE
+  # ------------
+  if [[ -f Makefile ]]; then
+    pecho "\033]1337;SetKeyLabel=F$toolsIndex=🐒 make\a"
+    bindkey $fnKeys[$toolsIndex] _displayMakeScripts
+    toolsIndex=$((toolsIndex + 1))
   fi
 }
 
@@ -157,20 +176,26 @@ function _displayNpmScripts() {
   # find available npm run scripts only if new directory
   if [[ $lastPackageJsonPath != $(echo "$(pwd)/package.json") ]]; then
     lastPackageJsonPath=$(echo "$(pwd)/package.json")
-    npmScripts=($(node -e "console.log(Object.keys($(npm run --json)).filter(name => !name.includes(':')).sort((a, b) => a.localeCompare(b)).filter((name, idx) => idx < 12).join(' '))"))
+    if [[ -n "$(cat $lastPackageJsonPath)" ]]; then
+      npmScripts=($(node -e "console.log(Object.keys($(npm run --json)).filter(name => !name.includes(':')).sort((a, b) => a.localeCompare(b)).filter((name, idx) => idx < 12).join(' '))"))
+    fi
   fi
 
   _clearTouchbar
   _unbindTouchbar
 
   touchBarState='npm'
-
-  fnKeysIndex=1
-  for npmScript in "$npmScripts[@]"; do
-    fnKeysIndex=$((fnKeysIndex + 1))
-    bindkey -s $fnKeys[$fnKeysIndex] "npm run $npmScript \n"
-    pecho "\033]1337;SetKeyLabel=F$fnKeysIndex=$npmScript\a"
-  done
+  
+  if [[ -n "$npmScripts[@]" ]]; then
+    fnKeysIndex=1
+    for npmScript in "$npmScripts[@]"; do
+      fnKeysIndex=$((fnKeysIndex + 1))
+      bindkey -s $fnKeys[$fnKeysIndex] "npm run $npmScript \n"
+      pecho "\033]1337;SetKeyLabel=F$fnKeysIndex=$npmScript\a"
+    done
+  else
+    pecho "\033]1337;SetKeyLabel=F2=⛔ empty\a"
+  fi
 
   pecho "\033]1337;SetKeyLabel=F1=👈 back\a"
   bindkey "${fnKeys[1]}" _displayDefault
@@ -180,7 +205,9 @@ function _displayYarnScripts() {
   # find available yarn run scripts only if new directory
   if [[ $lastPackageJsonPath != $(echo "$(pwd)/package.json") ]]; then
     lastPackageJsonPath=$(echo "$(pwd)/package.json")
-    yarnScripts=($(node -e "console.log($(yarn run --json 2>&1 | sed '4!d').data.items.filter(name => !name.includes(':')).sort((a, b) => a.localeCompare(b)).filter((name, idx) => idx < 12).join(' '))"))
+    if [[ -n "$(cat $lastPackageJsonPath)" ]]; then
+      yarnScripts=($(node -e "console.log($(yarn run --json 2>&1 | sed '4!d').data.items.filter(name => !name.includes(':')).sort((a, b) => a.localeCompare(b)).filter((name, idx) => idx < 12).join(' '))"))
+    fi
   fi
 
   _clearTouchbar
@@ -188,12 +215,45 @@ function _displayYarnScripts() {
 
   touchBarState='yarn'
 
-  fnKeysIndex=1
-  for yarnScript in "$yarnScripts[@]"; do
-    fnKeysIndex=$((fnKeysIndex + 1))
-    bindkey -s $fnKeys[$fnKeysIndex] "yarn run $yarnScript \n"
-    pecho "\033]1337;SetKeyLabel=F$fnKeysIndex=$yarnScript\a"
-  done
+  if [[ -n "$npmScripts[@]" ]]; then
+    fnKeysIndex=1
+    for yarnScript in "$yarnScripts[@]"; do
+      fnKeysIndex=$((fnKeysIndex + 1))
+      bindkey -s $fnKeys[$fnKeysIndex] "yarn run $yarnScript \n"
+      pecho "\033]1337;SetKeyLabel=F$fnKeysIndex=$yarnScript\a"
+    done
+  else
+    pecho "\033]1337;SetKeyLabel=F2=⛔ empty\a"
+  fi
+
+  pecho "\033]1337;SetKeyLabel=F1=👈 back\a"
+  bindkey "${fnKeys[1]}" _displayDefault
+}
+
+function _displayMakeScripts() {
+  # find available makefile only if new directory
+  if [[ $lastMakefilePath != $(echo "$(pwd)/Makefile") ]]; then
+    lastMakefilePath=$(echo "$(pwd)/Makefile")
+    if [[ -n "$(cat $lastMakefilePath)" ]]; then
+      makeRules=($(node -e "console.log('$(echo $(cat Makefile | grep '^[^\.].*:' | cut -d':' -f1))')"))
+    fi
+  fi
+
+  _clearTouchbar
+  _unbindTouchbar
+
+  touchBarState='make'
+
+  if [[ -n "$makeRules[@]" ]]; then
+    fnKeysIndex=1
+    for makeRule in "$makeRules[@]"; do
+      fnKeysIndex=$((fnKeysIndex + 1))
+      bindkey -s $fnKeys[$fnKeysIndex] "make $makeRule \n"
+      pecho "\033]1337;SetKeyLabel=F$fnKeysIndex=$makeRule\a"
+    done
+  else
+    pecho "\033]1337;SetKeyLabel=F2=⛔ empty\a"
+  fi
 
   pecho "\033]1337;SetKeyLabel=F1=👈 back\a"
   bindkey "${fnKeys[1]}" _displayDefault
@@ -224,6 +284,7 @@ function _displayBranches() {
 zle -N _displayDefault
 zle -N _displayNpmScripts
 zle -N _displayYarnScripts
+zle -N _displayMakeScripts
 zle -N _displayBranches
 
 precmd_iterm_touchbar() {
@@ -231,6 +292,8 @@ precmd_iterm_touchbar() {
     _displayNpmScripts
   elif [[ $touchBarState == 'yarn' ]]; then
     _displayYarnScripts
+  elif [[ $touchBarState == 'make' ]]; then
+    _displayMakeScripts
   elif [[ $touchBarState == 'github' ]]; then
     _displayBranches
   else
