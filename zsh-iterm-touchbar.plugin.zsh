@@ -132,12 +132,12 @@ function _displayDefault() {
 
     pecho "\033]1337;SetKeyLabel=F2=🎋 $(git_current_branch)\a"
     pecho "\033]1337;SetKeyLabel=F3=$touchbarIndicators\a"
-    pecho "\033]1337;SetKeyLabel=F4=✉️ push\a";
+    pecho "\033]1337;SetKeyLabel=F4=👀\a";
 
     # bind git actions
-    bindkey '^[OQ' _displayBranches
-    bindkey -s '^[OR' 'git status \n'
-    bindkey -s '^[OS' "git push origin $(git_current_branch) \n"
+    bindkey "${fnKeys[1]}" _displayBranches
+    bindkey -s "${fnKeys[2]}" 'git status \n'
+    bindkey -s "${fnKeys[3]}" "git diff \n"
   fi
 
   # PACKAGE.JSON
@@ -150,6 +150,13 @@ function _displayDefault() {
           pecho "\033]1337;SetKeyLabel=F5=⚡️ npm-run\a"
           bindkey "${fnKeys[5]}" _displayNpmScripts
     fi
+  fi
+
+  # MAKEFILE
+  # ------------
+  if [[ -f Makefile ]]; then
+      pecho "\033]1337;SetKeyLabel=F5=🐒 make\a"
+      bindkey "${fnKeys[5]}" _displayMakeScripts
   fi
 }
 
@@ -199,6 +206,29 @@ function _displayYarnScripts() {
   bindkey "${fnKeys[1]}" _displayDefault
 }
 
+function _displayMakeScripts() {
+  # find available npm run scripts only if new directory
+  if [[ $lastMakefilePath != $(echo "$(pwd)/Makefile") ]]; then
+    lastMakefilePath=$(echo "$(pwd)/Makefile")
+    makeRules=($(cat Makefile| grep '^[^\.].*:' | cut -d':' -f1))
+  fi
+
+  _clearTouchbar
+  _unbindTouchbar
+
+  touchBarState='make'
+
+  fnKeysIndex=1
+  for makeRule in "$makeRules[@]"; do
+    fnKeysIndex=$((fnKeysIndex + 1))
+    bindkey -s $fnKeys[$fnKeysIndex] "make $makeRule \n"
+    pecho "\033]1337;SetKeyLabel=F$fnKeysIndex=$makeRule\a"
+  done
+
+  pecho "\033]1337;SetKeyLabel=F1=👈 back\a"
+  bindkey "${fnKeys[1]}" _displayDefault
+}
+
 function _displayBranches() {
   # List of branches for current repo
   gitBranches=($(node -e "console.log('$(echo $(git branch))'.split(/[ ,]+/).toString().split(',').join(' ').toString().replace('* ', ''))"))
@@ -224,6 +254,7 @@ function _displayBranches() {
 zle -N _displayDefault
 zle -N _displayNpmScripts
 zle -N _displayYarnScripts
+zle -N _displayMakeScripts
 zle -N _displayBranches
 
 precmd_iterm_touchbar() {
@@ -231,6 +262,8 @@ precmd_iterm_touchbar() {
     _displayNpmScripts
   elif [[ $touchBarState == 'yarn' ]]; then
     _displayYarnScripts
+  elif [[ $touchBarState == 'make' ]]; then
+    _displayMakeScripts
   elif [[ $touchBarState == 'github' ]]; then
     _displayBranches
   else
