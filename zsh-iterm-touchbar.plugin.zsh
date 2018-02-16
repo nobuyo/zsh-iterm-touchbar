@@ -261,7 +261,7 @@ function _displayMakeScripts() {
 
 function _displayBranches() {
   # List of branches for current repo
-  gitBranches=($(node -e "console.log('$(echo $(git branch))'.split(/[ ,]+/).toString().split(',').join(' ').toString().replace('* ', ''))"))
+  gitBranches=($(node -e "console.log('$(echo master $(git branch --sort=-authordate | grep -v master | head -n 10))'.split(/[ ,]+/).toString().split(',').join(' ').toString().replace('* ', ''))"))
 
   _clearTouchbar
   _unbindTouchbar
