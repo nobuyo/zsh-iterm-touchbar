@@ -139,8 +139,9 @@ function _displayDefault() {
 
     # bind git actions
     bindkey "${fnKeys[2]}" _displayBranches
-    bindkey -s "${fnKeys[3]}" 'git status \n'
-    bindkey -s "${fnKeys[4]}" "git branch | grep -v '*|master' | xargs git branch -d \n"
+    bindkey -s "${fnKeys[3]}" 'git status -s \n'
+    bindkey -s "${fnKeys[4]}" "git diff \n"
+    bindkey -s "${fnKeys[5]}" "git branch | grep -v '*|master' | xargs git branch -d \n"
   else
     pecho "\033]1337;SetKeyLabel=F2=⛔ not git yet\a";
   fi
