@@ -135,11 +135,12 @@ function _displayDefault() {
     pecho "\033]1337;SetKeyLabel=F2=🎋 $(git_current_branch)\a"
     pecho "\033]1337;SetKeyLabel=F3=$touchbarIndicators\a"
     pecho "\033]1337;SetKeyLabel=F4=👀\a";
+    pecho "\033]1337;SetKeyLabel=F5=🗑\a";
 
     # bind git actions
     bindkey "${fnKeys[2]}" _displayBranches
     bindkey -s "${fnKeys[3]}" 'git status \n'
-    bindkey -s "${fnKeys[4]}" "git diff \n"
+    bindkey -s "${fnKeys[4]}" "git branch | grep -v '*|master' | xargs git branch -d \n"
   else
     pecho "\033]1337;SetKeyLabel=F2=⛔ not git yet\a";
   fi
